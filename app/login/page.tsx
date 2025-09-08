@@ -18,7 +18,7 @@ export default function LoginPage() {
     setBusy(true);
 
     try {
-      // Clear any stale sessions (e.g. issued by localhost)
+      // Clear stale sessions
       await supabase.auth.signOut().catch(() => {});
       await new Promise((r) => setTimeout(r, 120));
 
@@ -28,6 +28,7 @@ export default function LoginPage() {
         await supabase.auth.signInWithPassword({ email, password });
 
       if (loginError) {
+        console.error(">>> login error", loginError);
         setError(loginError.message || "Login failed");
         setBusy(false);
         return;
@@ -40,7 +41,7 @@ export default function LoginPage() {
         return;
       }
 
-      // Fetch role and route
+      // Fetch role
       const { data: roleData, error: roleErr } = await supabase
         .from("users")
         .select("role")
@@ -48,17 +49,21 @@ export default function LoginPage() {
         .single();
 
       if (roleErr || !roleData) {
+        console.error(">>> role fetch error", roleErr);
         setError("Could not determine role for this user");
         setBusy(false);
         return;
       }
 
       const role = (roleData.role || "").toLowerCase();
+      console.log(">>> login success; role =", role);
+
       if (role === "admin") router.push("/admin/dashboard");
       else if (role === "planner") router.push("/planner/dashboard");
       else if (role === "driver") router.push("/driver/dashboard");
       else setError("Unknown role for this account.");
     } catch (err: any) {
+      console.error(">>> unexpected login error", err);
       setError(err?.message || "Unexpected error");
     } finally {
       setBusy(false);

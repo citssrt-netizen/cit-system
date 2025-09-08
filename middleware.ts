@@ -19,13 +19,12 @@ export async function middleware(req: NextRequest) {
   const url = req.nextUrl.pathname;
 
   console.log(">>> Middleware triggered for:", url);
-  console.log(">>> Cookies in middleware:", req.cookies.getAll());
 
   if (
     url.startsWith("/login") ||
     url.startsWith("/_next") ||
     url.startsWith("/favicon.ico") ||
-    url.startsWith("/api/auth")
+    url.startsWith("/api")
   ) {
     return res;
   }
