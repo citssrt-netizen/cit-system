@@ -1,93 +1,122 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
-  const supabase = createClientComponentClient();
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    setError(null);
+    setBusy(true);
 
-    console.log(">>> Attempting login with:", email);
+    try {
+      // Clear any stale sessions (e.g. issued by localhost)
+      await supabase.auth.signOut().catch(() => {});
+      await new Promise((r) => setTimeout(r, 120));
 
-    const {
-      data: { user, session },
-      error: loginError,
-    } = await supabase.auth.signInWithPassword({ email, password });
+      console.log(">>> login using URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
 
-    if (loginError) {
-      console.error(">>> Login error:", loginError.message);
-      setError(loginError.message);
-      return;
+      const { data: signInData, error: loginError } =
+        await supabase.auth.signInWithPassword({ email, password });
+
+      if (loginError) {
+        setError(loginError.message || "Login failed");
+        setBusy(false);
+        return;
+      }
+
+      const user = signInData.user;
+      if (!user) {
+        setError("No user returned from Supabase");
+        setBusy(false);
+        return;
+      }
+
+      // Fetch role and route
+      const { data: roleData, error: roleErr } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (roleErr || !roleData) {
+        setError("Could not determine role for this user");
+        setBusy(false);
+        return;
+      }
+
+      const role = (roleData.role || "").toLowerCase();
+      if (role === "admin") router.push("/admin/dashboard");
+      else if (role === "planner") router.push("/planner/dashboard");
+      else if (role === "driver") router.push("/driver/dashboard");
+      else setError("Unknown role for this account.");
+    } catch (err: any) {
+      setError(err?.message || "Unexpected error");
+    } finally {
+      setBusy(false);
     }
-    if (!session || !user) {
-      console.error(">>> Login failed: no session returned");
-      setError("Login failed: no session returned");
-      return;
-    }
-
-    console.log(">>> Login success, user id:", user.id);
-
-    const { data: roleData, error: roleError } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (roleError || !roleData) {
-      console.error(">>> Unable to fetch user role", roleError);
-      setError("Unable to fetch user role");
-      return;
-    }
-
-    const normalizedRole = roleData.role?.toLowerCase();
-    console.log(">>> Fetched role:", normalizedRole);
-
-    if (normalizedRole === "admin") router.push("/admin/dashboard");
-    else if (normalizedRole === "planner") router.push("/planner/dashboard");
-    else if (normalizedRole === "driver") router.push("/driver/dashboard");
-    else setError("Invalid role, please contact administrator.");
-  };
+  }
 
   return (
-    <div className="flex items-center justify-center h-screen">
+    <main className="min-h-screen flex items-center justify-center p-6">
       <form
         onSubmit={handleLogin}
-        className="bg-white p-8 shadow-lg rounded-lg w-96"
+        className="w-full max-w-sm space-y-4 border rounded-xl p-6"
       >
-        <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
-        {error && <p className="text-red-500 mb-4">{error}</p>}
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full border rounded px-3 py-2 mb-4"
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full border rounded px-3 py-2 mb-4"
-          required
-        />
+        <h1 className="text-xl font-semibold">Sign in</h1>
+
+        <div className="space-y-2">
+          <label className="block text-sm">Email</label>
+          <input
+            type="email"
+            className="w-full border rounded px-3 py-2"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@example.com"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm">Password</label>
+          <input
+            type="password"
+            className="w-full border rounded px-3 py-2"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            required
+          />
+        </div>
+
+        {error && (
+          <p className="text-red-600 text-sm" role="alert">
+            {error}
+          </p>
+        )}
+
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+          disabled={busy}
+          className="w-full rounded bg-black text-white py-2 disabled:opacity-60"
         >
-          Login
+          {busy ? "Signing in…" : "Sign in"}
         </button>
+
+        <div className="mt-3 text-xs text-gray-500">
+          <a className="underline" href="/auth/debug">Auth debug</a>{" "}
+          ·{" "}
+          <a className="underline" href="/auth/reset">Reset auth</a>
+        </div>
       </form>
-    </div>
+    </main>
   );
 }

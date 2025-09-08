@@ -2,6 +2,18 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+function decodeJwtPayload(token: string) {
+  try {
+    const [, payload] = token.split(".");
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = base64.length % 4 ? "=".repeat(4 - (base64.length % 4)) : "";
+    const json = Buffer.from(base64 + pad, "base64").toString("utf8");
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const url = req.nextUrl.pathname;
@@ -12,7 +24,8 @@ export async function middleware(req: NextRequest) {
   if (
     url.startsWith("/login") ||
     url.startsWith("/_next") ||
-    url.startsWith("/favicon.ico")
+    url.startsWith("/favicon.ico") ||
+    url.startsWith("/api/auth")
   ) {
     return res;
   }
@@ -23,15 +36,16 @@ export async function middleware(req: NextRequest) {
     {
       cookies: {
         get(name: string) {
-          const cookie = req.cookies.get("sb-supabase-auth-token")?.value;
-
-          // ✅ Fix: parse cookie array and return only the token
+          const raw = req.cookies.get("sb-supabase-auth-token")?.value;
+          if (!raw) return undefined;
           try {
-            const parsed = JSON.parse(cookie || "[]");
-            return parsed[0]; // JWT token only
-          } catch (err) {
-            console.warn(">>> Failed to parse auth cookie", err);
-            return cookie;
+            const parsed = JSON.parse(raw);
+            const token = parsed?.[0];
+            const payload = token ? decodeJwtPayload(token) : null;
+            console.log(">>> Parsed JWT iss from cookie:", payload?.iss || "(no iss)");
+            return token || raw;
+          } catch {
+            return raw;
           }
         },
         set(name: string, value: string, options: any) {
@@ -65,7 +79,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  const normalizedRole = userData.role?.toLowerCase() || "";
+  const normalizedRole = (userData.role || "").toLowerCase();
 
   if (url.startsWith("/admin") && normalizedRole !== "admin") {
     return NextResponse.redirect(new URL("/login", req.url));
