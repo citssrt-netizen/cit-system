@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { supabase } from "../utils/supabaseClient";
+import { supabase } from "@/lib/supabase"; // ✅ fixed import
 
 // Clean file names for supabase
 function sanitizeFileName(name: string) {
@@ -26,13 +26,17 @@ export default function FuelReceiptUpload({
     e.preventDefault();
     setLoading(true);
     setSuccess(false);
+
     let image_url = "";
+
     if (file) {
       const cleanName = sanitizeFileName(file.name);
       const filePath = `${runId}/${Date.now()}-${cleanName}`;
+
       const { error: uploadError } = await supabase.storage
         .from("fuel-receipts")
         .upload(filePath, file, { upsert: true });
+
       if (uploadError) {
         alert("Upload error: " + uploadError.message);
         setLoading(false);
@@ -41,7 +45,9 @@ export default function FuelReceiptUpload({
         const { data } = supabase.storage
           .from("fuel-receipts")
           .getPublicUrl(filePath);
+
         image_url = data.publicUrl;
+
         if (!image_url) {
           alert("Could not get public URL for fuel receipt.");
           setLoading(false);
@@ -49,6 +55,7 @@ export default function FuelReceiptUpload({
         }
       }
     }
+
     if (image_url) {
       const { error } = await supabase.from("fuel_receipts").insert({
         run_id: runId,
@@ -56,6 +63,7 @@ export default function FuelReceiptUpload({
         amount: amount ? parseFloat(amount) : null,
         uploaded_by: userId,
       });
+
       if (!error) {
         setSuccess(true);
         setFile(null);
@@ -65,6 +73,7 @@ export default function FuelReceiptUpload({
         alert("Database error: " + error.message);
       }
     }
+
     setLoading(false);
   }
 
@@ -93,7 +102,9 @@ export default function FuelReceiptUpload({
       <button type="submit" disabled={loading} style={{ marginLeft: 8 }}>
         {loading ? "Uploading..." : "Upload Receipt"}
       </button>
-      {success && <span style={{ color: "green", marginLeft: 8 }}>Uploaded!</span>}
+      {success && (
+        <span style={{ color: "green", marginLeft: 8 }}>Uploaded!</span>
+      )}
     </form>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from "../utils/supabaseClient";
+import { supabase } from "@/lib/supabase"; // ✅ fixed import
 import { VehicleDropdown } from "./VehicleDropdown";
 import { ClientDropdown } from "./ClientDropdown";
 import { TeamSelector } from "./TeamSelector";
@@ -31,7 +31,9 @@ export const RunForm: React.FC<Props> = ({ initialValues, isEdit, runId }) => {
     setClient(initialValues.client_id || "");
     setTeam(initialValues.assigned_team || []);
     setRoute(initialValues.route || "");
-    setRunCharges(initialValues.run_charges ? initialValues.run_charges.toString() : "");
+    setRunCharges(
+      initialValues.run_charges ? initialValues.run_charges.toString() : ""
+    );
   }, [initialValues]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,7 +50,7 @@ export const RunForm: React.FC<Props> = ({ initialValues, isEdit, runId }) => {
       assigned_team: team,
       route,
       run_charges: runCharges ? parseFloat(runCharges) : null,
-      status: "planned"
+      status: "planned",
     };
 
     let error = null;
@@ -63,7 +65,13 @@ export const RunForm: React.FC<Props> = ({ initialValues, isEdit, runId }) => {
     if (!error) {
       setSuccess(true);
       if (!isEdit) {
-        setDate(""); setType("scheduled"); setVehicle(""); setClient(""); setTeam([]); setRoute(""); setRunCharges("");
+        setDate("");
+        setType("scheduled");
+        setVehicle("");
+        setClient("");
+        setTeam([]);
+        setRoute("");
+        setRunCharges("");
       }
     } else {
       setErrorMsg(error.message);
@@ -77,14 +85,14 @@ export const RunForm: React.FC<Props> = ({ initialValues, isEdit, runId }) => {
         <input
           type="date"
           value={date}
-          onChange={e => setDate(e.target.value)}
+          onChange={(e) => setDate(e.target.value)}
           required
         />
       </label>
       <br />
       <label>
         Run Type:
-        <select value={type} onChange={e => setType(e.target.value)}>
+        <select value={type} onChange={(e) => setType(e.target.value)}>
           <option value="scheduled">Scheduled</option>
           <option value="adhoc">Ad-hoc</option>
         </select>
@@ -106,7 +114,7 @@ export const RunForm: React.FC<Props> = ({ initialValues, isEdit, runId }) => {
         Route:{" "}
         <textarea
           value={route}
-          onChange={e => setRoute(e.target.value)}
+          onChange={(e) => setRoute(e.target.value)}
           placeholder="Describe route, stops, etc"
         />
       </label>
@@ -116,7 +124,7 @@ export const RunForm: React.FC<Props> = ({ initialValues, isEdit, runId }) => {
         <input
           type="number"
           value={runCharges}
-          onChange={e => setRunCharges(e.target.value)}
+          onChange={(e) => setRunCharges(e.target.value)}
           placeholder="Charges (if any)"
           min={0}
           step="0.01"
@@ -124,9 +132,19 @@ export const RunForm: React.FC<Props> = ({ initialValues, isEdit, runId }) => {
       </label>
       <br />
       <button type="submit" disabled={loading}>
-        {loading ? (isEdit ? "Saving..." : "Creating...") : (isEdit ? "Save Changes" : "Create Run")}
+        {loading
+          ? isEdit
+            ? "Saving..."
+            : "Creating..."
+          : isEdit
+          ? "Save Changes"
+          : "Create Run"}
       </button>
-      {success && <p style={{ color: "green" }}>{isEdit ? "Run updated!" : "Run created!"}</p>}
+      {success && (
+        <p style={{ color: "green" }}>
+          {isEdit ? "Run updated!" : "Run created!"}
+        </p>
+      )}
       {errorMsg && <p style={{ color: "red" }}>Error: {errorMsg}</p>}
     </form>
   );
