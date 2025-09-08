@@ -10,3 +10,4 @@ if (!supabaseUrl || !supabaseKey) {
 
 // ✅ Export a single shared client
 export const supabase = createClient(supabaseUrl, supabaseKey);
+

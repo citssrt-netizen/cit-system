@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "../../../utils/supabase";
+import { supabase } from "../../../lib/supabase";
 import { RunForm } from "../../../components/RunForm";
 
 export default function EditRunPage() {
